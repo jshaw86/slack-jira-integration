@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
@@ -37,8 +40,11 @@ func main() {
 		SigningSecret: signingSecret,
 	}
 
+	var validationTime time.Time
+	validationTimeGetter := validationTimeGetter{validationTime: validationTime}
+
 	router := mux.NewRouter()
-	router.HandleFunc("/slack/events", verifyslack.RequestHandler(r.SlackEventsHandler, time.Now(), signingSecret))
+	router.HandleFunc("/slack/events", verifyslack.RequestHandler(r.SlackEventsHandler, validationTimeGetter, signingSecret))
 	http.Handle("/", router)
 
 	http.ListenAndServe(":8000", router)
@@ -50,9 +56,21 @@ type runtime struct {
 	SigningSecret string
 }
 
-func slackSignature(versionNumber string, slackRequestTimestamp string, body string, secret string) string {
-	return fmt.Sprintf("%s:%s:%s", versionNumber, slackRequestTimestamp, body)
+type validationTimeGetter struct {
+	validationTime time.Time
+}
 
+func (v validationTimeGetter) Now() time.Time {
+	return v.validationTime
+}
+
+func slackSignature(timestamp string, requestBody []byte, signingSecret string) string {
+	baseSignature := append([]byte(fmt.Sprintf("v0:%s:", timestamp)), requestBody...)
+	mac := hmac.New(sha256.New, []byte(signingSecret))
+	mac.Write(baseSignature)
+
+	expectedSignature := fmt.Sprintf("v0=%s", hex.EncodeToString(mac.Sum(nil)))
+	return expectedSignature
 }
 
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
