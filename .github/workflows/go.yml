@@ -1,0 +1,22 @@
+name: Go
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build and publish Docker Images to GitHub Container registry
+      uses: VaultVulp/gp-docker-action@1.2.0
+      with:
+        # GitHub token to push Docker image to GitHub Packages
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        # Docker Image name
+        image-name: slack-jira
