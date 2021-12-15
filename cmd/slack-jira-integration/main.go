@@ -101,6 +101,16 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		}
 	*/
 
+	// Loop over header names
+	for name, values := range req.Header {
+		// Loop over all values for the name.
+		for _, value := range values {
+			fmt.Println(name, value)
+		}
+	}
+
+	fmt.Println(string(body))
+
 	resp.Write(body)
 
 }
