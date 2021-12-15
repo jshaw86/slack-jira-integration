@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -74,6 +75,12 @@ func slackSignature(timestamp string, requestBody []byte, signingSecret string) 
 }
 
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		resp.WriteHeader(http.StatusBadRequest)
+		return
+
+	}
 	/*
 		timestamp := req.Header.Get("X-Slack-Request-Timestamp")
 		body, err := ioutil.ReadAll(req.Body)
@@ -94,7 +101,7 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		}
 	*/
 
-	resp.Write([]byte("thing"))
+	resp.Write(body)
 
 }
 
