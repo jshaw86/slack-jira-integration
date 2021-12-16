@@ -20,10 +20,12 @@ func main() {
 	viper.BindEnv("USER_NAME")
 	viper.BindEnv("PASSWORD")
 	viper.BindEnv("SIGNING_SECRET")
+	viper.BindEnv("BOT_TOKEN")
 
 	username := viper.GetString("USER_NAME")
 	password := viper.GetString("PASSWORD")
 	signingSecret := viper.GetString("SIGNING_SECRET")
+	botToken := viper.GetString("BOT_TOKEN")
 
 	fmt.Println(fmt.Sprintf("username %s password %s secret %s", username, password, signingSecret))
 
@@ -34,8 +36,11 @@ func main() {
 
 	jiraClient, _ := jira.NewClient(tp.Client(), "https://jordanshaw.atlassian.net/")
 
+	slackClient := slack.New(botToken)
+
 	r := runtime{
 		JiraClient:    jiraClient,
+		SlackClient:   slackClient,
 		SigningSecret: signingSecret,
 	}
 
@@ -50,6 +55,7 @@ func main() {
 
 type runtime struct {
 	JiraClient    *jira.Client
+	SlackClient   *slack.Client
 	SigningSecret string
 }
 
@@ -97,17 +103,6 @@ func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler 
 	}
 }
 
-/*
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Do stuff here
-			log.Println(r.RequestURI)
-			// Call the next handler, which can be another middleware in the chain, or the final handler.
-			next.ServeHTTP(w, r)
-		})
-	}
-*/
-
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -116,15 +111,21 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
 	}
 
-	// Loop over header names
-	for name, values := range req.Header {
-		// Loop over all values for the name.
-		for _, value := range values {
-			fmt.Println(name, value)
-		}
+	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
-	fmt.Println(string(body))
+	/*
+		channelID, timestamp, err := api.PostMessage(
+			"CHANNEL_ID",
+			slack.MsgOptionText("Some text", false),
+			slack.MsgOptionAttachments(attachment),
+			slack.MsgOptionAsUser(true), // Add this if you want that the bot would post message as a user, otherwise it will send response using the default slackbot
+		)*/
+
+	fmt.Println(fmt.Sprintf("eventsApiEvent: %+v", eventsAPIEvent))
 
 	resp.Write(body)
 
