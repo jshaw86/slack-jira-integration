@@ -118,6 +118,7 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		return
 	}
 
+	fmt.Println(fmt.Sprintf("outter: %+v", eventsAPIEvent))
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
@@ -133,7 +134,15 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 				ChannelID: ev.Channel,
 			}
 			conversationResponse, err := r.SlackClient.GetConversationHistoryContext(context.Background(), &params)
-			fmt.Println(fmt.Sprintf("message: %+v %+v", conversationResponse, err))
+			if err != nil {
+				fmt.Println(fmt.Sprintf("fetch err %+v", err))
+
+			}
+
+			if conversationResponse.SlackResponse.Ok == true {
+				fmt.Println(fmt.Sprintf("message: %+v", conversationResponse.Messages))
+
+			}
 		}
 	}
 
