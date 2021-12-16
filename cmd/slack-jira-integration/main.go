@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -119,11 +120,20 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
 		innerEvent := eventsAPIEvent.InnerEvent
-		switch innerEvent.Data.(type) {
+		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
-			fmt.Println(fmt.Sprintf("reactionAdded: %+v", innerEvent.Data))
+			params := slack.GetConversationHistoryParameters{
+				ChannelID: ev.Item.Channel,
+			}
+			conversationResponse, err := r.SlackClient.GetConversationHistoryContext(context.Background(), &params)
+			fmt.Println(fmt.Sprintf("reactionAdded: %+v %+v", conversationResponse, err))
+
 		case *slackevents.MessageEvent:
-			fmt.Println(fmt.Sprintf("message: %+v", innerEvent.Data))
+			params := slack.GetConversationHistoryParameters{
+				ChannelID: ev.Channel,
+			}
+			conversationResponse, err := r.SlackClient.GetConversationHistoryContext(context.Background(), &params)
+			fmt.Println(fmt.Sprintf("message: %+v %+v", conversationResponse, err))
 		}
 	}
 
