@@ -117,6 +117,16 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		return
 	}
 
+	if eventsAPIEvent.Type == slackevents.CallbackEvent {
+		innerEvent := eventsAPIEvent.InnerEvent
+		switch innerEvent.Data.(type) {
+		case *slackevents.ReactionAddedEvent:
+			fmt.Println(fmt.Sprintf("reactionAdded: %+v", innerEvent.Data))
+		case *slackevents.MessageEvent:
+			fmt.Println(fmt.Sprintf("message: %+v", innerEvent.Data))
+		}
+	}
+
 	/*
 		channelID, timestamp, err := api.PostMessage(
 			"CHANNEL_ID",
@@ -124,8 +134,6 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 			slack.MsgOptionAttachments(attachment),
 			slack.MsgOptionAsUser(true), // Add this if you want that the bot would post message as a user, otherwise it will send response using the default slackbot
 		)*/
-
-	fmt.Println(fmt.Sprintf("eventsApiEvent: %+v", eventsAPIEvent))
 
 	resp.Write(body)
 
