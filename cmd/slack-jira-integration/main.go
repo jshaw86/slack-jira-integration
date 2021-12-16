@@ -1,21 +1,19 @@
 package main
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/andygrunwald/go-jira"
+	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/mux"
-
-	"github.com/coro/verifyslack"
 )
 
 func main() {
@@ -41,11 +39,9 @@ func main() {
 		SigningSecret: signingSecret,
 	}
 
-	var validationTime time.Time
-	validationTimeGetter := validationTimeGetter{validationTime: validationTime}
-
 	router := mux.NewRouter()
-	router.HandleFunc("/slack/events", verifyslack.RequestHandler(r.SlackEventsHandler, validationTimeGetter, signingSecret))
+	router.Use(validateSlackRequest(signingSecret))
+	router.HandleFunc("/slack/events", r.SlackEventsHandler)
 	http.Handle("/", router)
 
 	http.ListenAndServe(":8000", router)
@@ -57,22 +53,60 @@ type runtime struct {
 	SigningSecret string
 }
 
-type validationTimeGetter struct {
-	validationTime time.Time
+func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+			bodyBytes, _ := ioutil.ReadAll(req.Body)
+			req.Body.Close() //  must close
+			req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+			sv, err := slack.NewSecretsVerifier(req.Header, signingSecret)
+			if err != nil {
+				resp.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if _, err := sv.Write(bodyBytes); err != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if err := sv.Ensure(); err != nil {
+				resp.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(bodyBytes), slackevents.OptionNoVerifyToken())
+			if err != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			if eventsAPIEvent.Type == slackevents.URLVerification {
+				var r *slackevents.ChallengeResponse
+				err := json.Unmarshal([]byte(bodyBytes), &r)
+				if err != nil {
+					resp.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				resp.Header().Set("Content-Type", "text")
+				resp.Write([]byte(r.Challenge))
+				return
+			}
+
+			next.ServeHTTP(resp, req)
+
+		})
+	}
 }
 
-func (v validationTimeGetter) Now() time.Time {
-	return v.validationTime
-}
-
-func slackSignature(timestamp string, requestBody []byte, signingSecret string) string {
-	baseSignature := append([]byte(fmt.Sprintf("v0:%s:", timestamp)), requestBody...)
-	mac := hmac.New(sha256.New, []byte(signingSecret))
-	mac.Write(baseSignature)
-
-	expectedSignature := fmt.Sprintf("v0=%s", hex.EncodeToString(mac.Sum(nil)))
-	return expectedSignature
-}
+/*
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Do stuff here
+			log.Println(r.RequestURI)
+			// Call the next handler, which can be another middleware in the chain, or the final handler.
+			next.ServeHTTP(w, r)
+		})
+	}
+*/
 
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
@@ -81,25 +115,6 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		return
 
 	}
-	/*
-		timestamp := req.Header.Get("X-Slack-Request-Timestamp")
-		body, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
-			resp.Write([]byte(err.Error()))
-
-		}
-		givenSlackSignature := req.Header.Get("X-Slack-Signature")
-
-		calcSlackSignature := slackSignature("v0", timestamp, string(body), r.SigningSecret)
-
-		if givenSlackSignature != calcSlackSignature {
-			fmt.Println(fmt.Errorf("calc %s given %s", calcSlackSignature, givenSlackSignature))
-			resp.WriteHeader(http.StatusBadRequest)
-			resp.Write([]byte("signatures don't match"))
-
-		}
-	*/
 
 	// Loop over header names
 	for name, values := range req.Header {
