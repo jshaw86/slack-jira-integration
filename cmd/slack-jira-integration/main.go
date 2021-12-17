@@ -123,13 +123,26 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
+			fmt.Println(fmt.Sprintf("ev %+v", ev))
 			params := slack.GetConversationHistoryParameters{
 				ChannelID: ev.Item.Channel,
 			}
 			conversationResponse, err := r.SlackClient.GetConversationHistoryContext(context.Background(), &params)
-			fmt.Println(fmt.Sprintf("reactionAdded: %+v %+v", conversationResponse, err))
+
+			if err != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+
+			}
+			for _, m := range conversationResponse.Messages {
+				id := m.Msg.ClientMsgID
+				ts := m.Msg.Timestamp
+				body := m.Msg.Text
+
+				fmt.Println(fmt.Sprintf("id %s ts %s body %s", id, ts, body))
+			}
 
 		case *slackevents.MessageEvent:
+			fmt.Println(fmt.Sprintf("ev %+v", ev))
 			params := slack.GetConversationHistoryParameters{
 				ChannelID: ev.Channel,
 			}
