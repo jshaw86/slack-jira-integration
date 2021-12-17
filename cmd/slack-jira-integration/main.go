@@ -104,6 +104,9 @@ func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler 
 	}
 }
 
+func (r *runtime) postBackMessage() {
+}
+
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -124,22 +127,8 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
 			fmt.Println(fmt.Sprintf("ev %+v", ev))
-			params := slack.GetConversationHistoryParameters{
-				ChannelID: ev.Item.Channel,
-			}
-			conversationResponse, err := r.SlackClient.GetConversationHistoryContext(context.Background(), &params)
 
-			if err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-
-			}
-			for _, m := range conversationResponse.Messages {
-				id := m.Msg.ClientMsgID
-				ts := m.Msg.Timestamp
-				body := m.Msg.Text
-
-				fmt.Println(fmt.Sprintf("id %s ts %s body %s", id, ts, body))
-			}
+			r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText("message received", true))
 
 		case *slackevents.MessageEvent:
 			fmt.Println(fmt.Sprintf("ev %+v", ev))
@@ -158,14 +147,6 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 			}
 		}
 	}
-
-	/*
-		channelID, timestamp, err := api.PostMessage(
-			"CHANNEL_ID",
-			slack.MsgOptionText("Some text", false),
-			slack.MsgOptionAttachments(attachment),
-			slack.MsgOptionAsUser(true), // Add this if you want that the bot would post message as a user, otherwise it will send response using the default slackbot
-		)*/
 
 	resp.Write(body)
 
