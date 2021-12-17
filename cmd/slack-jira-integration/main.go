@@ -127,6 +127,21 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
 			fmt.Println(fmt.Sprintf("ev %+v", ev))
+            fields := &jira.IssueFields{
+                Description: "Test Issue",
+                Summary: "Just a demo issue",
+                Type: jira.IssueType{
+                    Name: "Bug",
+                },
+            }
+
+			issue := jira.Issue{
+                Fields: fields, 
+            }
+
+			createdIssue, _, _ := r.JiraClient.Issue.CreateWithContext(context.Background(), &issue)
+
+            fmt.Println(fmt.Sprintf("createdIssues: %+v", createdIssue))
 
 			r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText("message received", true))
 
