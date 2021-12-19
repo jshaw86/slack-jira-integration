@@ -151,7 +151,7 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
             if err != nil {
                 body, err := ioutil.ReadAll(resp.Body)
-                fmt.Println(fmt.Sprintf("err: %+v %+v %+v", err, resp.Response, body))
+                fmt.Println(fmt.Sprintf("err: %+v %+v %+v", err, resp.Response, string(body)))
                 return
             }
 
