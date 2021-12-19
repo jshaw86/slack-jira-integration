@@ -130,11 +130,17 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		case *slackevents.ReactionAddedEvent:
 			fmt.Println(fmt.Sprintf("ev %+v", ev))
             fields := &jira.IssueFields{
+                Reporter: &jira.User{
+                    Name: "Jordan Shaw",
+                },
                 Description: "Test Issue",
-                Summary: "Just a demo issue",
                 Type: jira.IssueType{
                     Name: "Bug",
                 },
+                Project: jira.Project{
+                    Key: "TEST",
+                },
+                Summary:  "Just a demo issue", 
             }
 
 			issue := jira.Issue{
