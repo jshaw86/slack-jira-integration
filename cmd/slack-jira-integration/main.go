@@ -22,11 +22,13 @@ func main() {
 	viper.BindEnv("PASSWORD")
 	viper.BindEnv("SIGNING_SECRET")
 	viper.BindEnv("BOT_TOKEN")
+	viper.BindEnv("JIRA_URL")
 
 	username := viper.GetString("USER_NAME")
 	password := viper.GetString("PASSWORD")
 	signingSecret := viper.GetString("SIGNING_SECRET")
 	botToken := viper.GetString("BOT_TOKEN")
+	jiraUrl := viper.GetString("JIRA_URL")
 
 	fmt.Println(fmt.Sprintf("username %s password %s secret %s", username, password, signingSecret))
 
@@ -35,7 +37,7 @@ func main() {
 		Password: password,
 	}
 
-	jiraClient, _ := jira.NewClient(tp.Client(), "https://jordanshaw.atlassian.net/")
+	jiraClient, _ := jira.NewClient(tp.Client(), jiraUrl)
 
 	slackClient := slack.New(botToken)
 
@@ -142,7 +144,7 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 			createdIssue, resp, err := r.JiraClient.Issue.CreateWithContext(context.Background(), &issue)
 
             if err != nil {
-                fmt.Println(fmt.Sprintf("err: %+v %+v", err, resp))
+                fmt.Println(fmt.Sprintf("err: %+v %+v", err, resp.Response))
             }
 
             fmt.Println(fmt.Sprintf("createdIssues: %+v", createdIssue))
