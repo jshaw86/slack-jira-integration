@@ -131,7 +131,7 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 			fmt.Println(fmt.Sprintf("ev %+v", ev))
             fields := &jira.IssueFields{
                 Reporter: &jira.User{
-                    Name: "Jordan Shaw",
+                    AccountID: "61b50f96744c4d0069ad92010",
                 },
                 Description: "Test Issue",
                 Type: jira.IssueType{
