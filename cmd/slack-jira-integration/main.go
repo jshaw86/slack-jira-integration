@@ -150,7 +150,9 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 			createdIssue, resp, err := r.JiraClient.Issue.CreateWithContext(context.Background(), &issue)
 
             if err != nil {
-                fmt.Println(fmt.Sprintf("err: %+v %+v", err, resp.Response))
+                body, err := ioutil.ReadAll(resp.Body)
+                fmt.Println(fmt.Sprintf("err: %+v %+v %+v", err, resp.Response, body))
+                return
             }
 
             fmt.Println(fmt.Sprintf("createdIssues: %+v", createdIssue))
