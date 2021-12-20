@@ -1,0 +1,27 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slack-jira-integration 
+spec:
+  replicas: 1 
+  selector:
+    matchLabels:
+      app: slack-jira-integration 
+  template:
+    metadata:
+      labels:
+        app: slack-jira-integration 
+    spec:
+      containers:
+      - name: hello-ingress
+        image: ghcr.io/jshaw86/slack-jira-integration/slack-jira:latest 
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - secretRef:
+            name: slack 
+        - secretRef:
+            name: jira 
+        - configMapRef:
+            name: jira

@@ -1,0 +1,23 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: slack-jira-integration-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+  - hosts:
+    - jordanshaw.app 
+    secretName: linode-lb-secret 
+  rules:
+  - host: jordanshaw.app 
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/slack/events"
+        backend:
+          service:
+            name: slack-jira-integration 
+            port:
+              number: 80
