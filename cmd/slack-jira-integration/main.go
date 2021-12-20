@@ -59,6 +59,7 @@ func main() {
 		JiraClient:    jiraClient,
 		SlackClient:   slackClient,
 		SigningSecret: signingSecret,
+        JiraUrl: jiraUrl,
         JiraProject: jiraProject,
         JiraSummary: jiraSummary,
         JiraIssueType: jiraIssueType,
@@ -78,6 +79,7 @@ type runtime struct {
 	JiraClient    *jira.Client
 	SlackClient   *slack.Client
 	SigningSecret string
+    JiraUrl string
     JiraProject string
     JiraSummary string
     JiraIssueType string
@@ -197,7 +199,9 @@ func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) error {
 
     fmt.Println(fmt.Sprintf("issue: %+v", createdIssue))
 
-    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText(createdIssue.Key, true))
+    jiraUrlToIssue := fmt.Sprintf("%sbrowse/%s", r.JiraUrl, createdIssue.Key)
+
+    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText(jiraUrlToIssue, true))
 
     return nil
 
