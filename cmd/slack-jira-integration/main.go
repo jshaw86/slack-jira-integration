@@ -128,52 +128,9 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
-			fmt.Println(fmt.Sprintf("ev %+v", ev))
-            fields := &jira.IssueFields{
-                Reporter: &jira.User{
-                    AccountID: "61b50f96744c4d0069ad9201",
-                },
-                Description: "Test Issue",
-                Type: jira.IssueType{
-                    Name: "Bug",
-                },
-                Project: jira.Project{
-                    Key: "TEST",
-                },
-                Summary:  "Just a demo issue", 
-            }
+          r.ReactionAddedEvent(ev)
+		
 
-			issue := jira.Issue{
-                Fields: fields, 
-            }
-
-			createdIssue, resp, err := r.JiraClient.Issue.CreateWithContext(context.Background(), &issue)
-
-            if err != nil {
-                body, err := ioutil.ReadAll(resp.Body)
-                fmt.Println(fmt.Sprintf("err: %+v %+v %+v", err, resp.Response, string(body)))
-                return
-            }
-
-            fmt.Println(fmt.Sprintf("createdIssues: %+v", createdIssue))
-
-			r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText("message received", true))
-
-		case *slackevents.MessageEvent:
-			fmt.Println(fmt.Sprintf("ev %+v", ev))
-			params := slack.GetConversationHistoryParameters{
-				ChannelID: ev.Channel,
-			}
-			conversationResponse, err := r.SlackClient.GetConversationHistoryContext(context.Background(), &params)
-			if err != nil {
-				fmt.Println(fmt.Sprintf("fetch err %+v", err))
-
-			}
-
-			if conversationResponse.SlackResponse.Ok == true {
-				fmt.Println(fmt.Sprintf("message: %+v", conversationResponse.Messages))
-
-			}
 		}
 	}
 
@@ -181,8 +138,96 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
 }
 
+func createJiraIssue(issueProject string, issueType string, issueSummary string, description string, reporterAccountID string) *jira.Issue {
+    fields := &jira.IssueFields{
+        Reporter: &jira.User{
+            AccountID: reporterAccountID,
+        },
+        Description: description,
+        Type: jira.IssueType{
+            Name: issueType,
+        },
+        Project: jira.Project{
+            Key: issueProject,
+        },
+        Summary:  issueSummary, 
+    }
+
+    return &jira.Issue{
+        Fields: fields, 
+    }
+
+}
+
+func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) {
+    fmt.Println(fmt.Sprintf("ev %+v", ev))
+
+    messages, err := GetConversationMessages(r.SlackClient, ev.Item.Channel, ev.Item.Timestamp)
+
+    if err != nil {
+        fmt.Println(fmt.Sprintf("get convo err: %+v", err))
+        return
+    }
+
+    issue := createJiraIssue("TEST", "Story", "Slack Escalation", messages[0].Msg.Text, "61b50f96744c4d0069ad9201")
+
+    createdIssue, resp, err := r.JiraClient.Issue.CreateWithContext(context.Background(), issue)
+
+    if err != nil {
+        body, err := ioutil.ReadAll(resp.Body)
+        fmt.Println(fmt.Sprintf("err: %+v %+v %+v", err, resp.Response, string(body)))
+        return
+    }
+
+    fmt.Println(fmt.Sprintf("createdIssues: %+v", createdIssue))
+
+    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText("message received", true))
+
+}
+
 func GetIssue(jiraClient jira.Client, issueID string) (*jira.Issue, error) {
 	issue, _, err := jiraClient.Issue.Get(issueID, nil)
 
 	return issue, err
+}
+
+func GetConversationMessages(slackClient *slack.Client, channel string, timestamp string) ([]slack.Message, error) {
+    params := slack.GetConversationRepliesParameters {
+        ChannelID: channel,
+        Timestamp: timestamp,
+    }
+
+
+    messages, hasMore, nextCursor, err := slackClient.GetConversationRepliesContext(context.Background(), &params)
+
+    if err != nil {
+        return nil, err
+
+    }
+
+    var conversationMessages []slack.Message 
+    conversationMessages = append(conversationMessages, messages...)
+
+    for hasMore {
+        params := slack.GetConversationRepliesParameters {
+            ChannelID: channel,
+            Timestamp: timestamp,
+            Cursor: nextCursor,
+        }
+
+        messages, hasMore, nextCursor, err = slackClient.GetConversationRepliesContext(context.Background(), &params)
+
+        if err != nil {
+           return conversationMessages, err
+
+        }
+
+        conversationMessages = append(conversationMessages, messages...)
+
+
+    }
+
+    return conversationMessages, nil 
+
+
 }
