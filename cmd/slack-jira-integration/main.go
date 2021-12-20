@@ -37,8 +37,6 @@ func main() {
 	jiraSummary := viper.GetString("JIRA_SUMMARY")
 	jiraIssueType := viper.GetString("JIRA_ISSUE_TYPE")
 
-	fmt.Println(fmt.Sprintf("username %s password %s secret %s", username, password, signingSecret))
-
 	tp := jira.BasicAuthTransport{
 		Username: username,
 		Password: password,
@@ -48,6 +46,15 @@ func main() {
 
 	slackClient := slack.New(botToken)
 
+    jiraUser, resp, err := jiraClient.User.GetSelf()
+
+    if err != nil {
+      bodyBytes, _ := ioutil.ReadAll(resp.Body)
+      fmt.Println(fmt.Sprintf("jira fetch user err, can't start: %+v %+v", string(bodyBytes), err))
+      return
+
+    }
+
 	r := runtime{
 		JiraClient:    jiraClient,
 		SlackClient:   slackClient,
@@ -55,6 +62,7 @@ func main() {
         JiraProject: jiraProject,
         JiraSummary: jiraSummary,
         JiraIssueType: jiraIssueType,
+        JiraUserAccountID: jiraUser.AccountID,
 	}
 
 	router := mux.NewRouter()
@@ -73,6 +81,7 @@ type runtime struct {
     JiraProject string
     JiraSummary string
     JiraIssueType string
+    JiraUserAccountID string
 }
 
 func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler {
@@ -169,29 +178,26 @@ func createJiraIssue(issueProject string, issueType string, issueSummary string,
 
 }
 
-func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) {
+func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) error {
     fmt.Println(fmt.Sprintf("ev %+v", ev))
 
     messages, err := GetConversationMessages(r.SlackClient, ev.Item.Channel, ev.Item.Timestamp)
 
     if err != nil {
-        fmt.Println(fmt.Sprintf("get convo err: %+v", err))
-        return
+        return err
     }
 
-    issue := createJiraIssue(r.JiraProject, r.JiraIssueType, r.JiraSummary, messages[0].Msg.Text, "61b50f96744c4d0069ad9201")
+    issue := createJiraIssue(r.JiraProject, r.JiraIssueType, r.JiraSummary, messages[0].Msg.Text, r.JiraUserAccountID)
 
-    createdIssue, resp, err := r.JiraClient.Issue.CreateWithContext(context.Background(), issue)
+    createdIssue, _, err := r.JiraClient.Issue.CreateWithContext(context.Background(), issue)
 
     if err != nil {
-        body, err := ioutil.ReadAll(resp.Body)
-        fmt.Println(fmt.Sprintf("err: %+v %+v %+v", err, resp.Response, string(body)))
-        return
+        return err
     }
 
-    fmt.Println(fmt.Sprintf("createdIssues: %+v", createdIssue))
+    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText(createdIssue.ID, true))
 
-    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText("message received", true))
+    return nil
 
 }
 
