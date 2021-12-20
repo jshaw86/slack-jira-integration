@@ -5,3 +5,6 @@ metadata:
 data:
   # property-like keys; each key maps to a simple value
   JIRA_URL: {{ .Values.jiraConfig.url }} 
+  JIRA_PROJECT: {{ .Values.jiraConfig.project }}
+  JIRA_SUMMARY: {{ .Values.jiraConfig.summary }}
+  JIRA_ISSUE_TYPE: {{ .Values.jiraConfig.issueType }}

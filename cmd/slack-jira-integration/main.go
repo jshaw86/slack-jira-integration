@@ -23,12 +23,19 @@ func main() {
 	viper.BindEnv("SIGNING_SECRET")
 	viper.BindEnv("BOT_TOKEN")
 	viper.BindEnv("JIRA_URL")
+    viper.BindEnv("JIRA_PROJECT")
+    viper.BindEnv("JIRA_SUMMARY")
+    viper.BindEnv("JIRA_ISSUE_TYPE")
 
 	username := viper.GetString("USER_NAME")
 	password := viper.GetString("PASSWORD")
 	signingSecret := viper.GetString("SIGNING_SECRET")
 	botToken := viper.GetString("BOT_TOKEN")
+
 	jiraUrl := viper.GetString("JIRA_URL")
+	jiraProject := viper.GetString("JIRA_PROJECT")
+	jiraSummary := viper.GetString("JIRA_SUMMARY")
+	jiraIssueType := viper.GetString("JIRA_ISSUE_TYPE")
 
 	fmt.Println(fmt.Sprintf("username %s password %s secret %s", username, password, signingSecret))
 
@@ -45,6 +52,9 @@ func main() {
 		JiraClient:    jiraClient,
 		SlackClient:   slackClient,
 		SigningSecret: signingSecret,
+        JiraProject: jiraProject,
+        JiraSummary: jiraSummary,
+        JiraIssueType: jiraIssueType,
 	}
 
 	router := mux.NewRouter()
@@ -60,6 +70,9 @@ type runtime struct {
 	JiraClient    *jira.Client
 	SlackClient   *slack.Client
 	SigningSecret string
+    JiraProject string
+    JiraSummary string
+    JiraIssueType string
 }
 
 func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler {
@@ -104,9 +117,6 @@ func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler 
 
 		})
 	}
-}
-
-func (r *runtime) postBackMessage() {
 }
 
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
@@ -169,7 +179,7 @@ func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) {
         return
     }
 
-    issue := createJiraIssue("TEST", "Story", "Slack Escalation", messages[0].Msg.Text, "61b50f96744c4d0069ad9201")
+    issue := createJiraIssue(r.JiraProject, r.JiraIssueType, r.JiraSummary, messages[0].Msg.Text, "61b50f96744c4d0069ad9201")
 
     createdIssue, resp, err := r.JiraClient.Issue.CreateWithContext(context.Background(), issue)
 
@@ -183,12 +193,6 @@ func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) {
 
     r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText("message received", true))
 
-}
-
-func GetIssue(jiraClient jira.Client, issueID string) (*jira.Issue, error) {
-	issue, _, err := jiraClient.Issue.Get(issueID, nil)
-
-	return issue, err
 }
 
 func GetConversationMessages(slackClient *slack.Client, channel string, timestamp string) ([]slack.Message, error) {
