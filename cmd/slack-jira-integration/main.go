@@ -195,7 +195,9 @@ func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) error {
         return err
     }
 
-    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText(createdIssue.ID, true))
+    fmt.Println(fmt.Sprintf("issue: %+v", createdIssue))
+
+    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText(createdIssue.Key, true))
 
     return nil
 
