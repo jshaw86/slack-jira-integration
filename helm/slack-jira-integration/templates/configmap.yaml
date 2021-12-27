@@ -8,3 +8,13 @@ data:
   JIRA_PROJECT: {{ .Values.jiraConfig.project }}
   JIRA_SUMMARY: {{ .Values.jiraConfig.summary }}
   JIRA_ISSUE_TYPE: {{ .Values.jiraConfig.issueType }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slack 
+data:
+  SLACK_CHANNELS: {{ join "," .Values.slackConfig.channels }}
+{{- range $k, $v := .Values.slackConfig.emojis }}
+  SLACK_EMOJI_{{ $k | upper }}: {{ $v }}
+{{- end }}
