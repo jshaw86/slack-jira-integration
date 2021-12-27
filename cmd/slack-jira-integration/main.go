@@ -1,27 +1,27 @@
 package main
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/andygrunwald/go-jira"
-	"github.com/slack-go/slack"
-	"github.com/slack-go/slack/slackevents"
-
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/mux"
+
+    "slack-jira-integration/slack"
+    "slack-jira-integration/jira"
+
+	"github.com/slack-go/slack/slackevents"
+
 )
 
 func main() {
 	viper.BindEnv("USER_NAME")
 	viper.BindEnv("PASSWORD")
-	viper.BindEnv("SIGNING_SECRET")
-	viper.BindEnv("BOT_TOKEN")
+	viper.BindEnv("SLACK_SIGNING_SECRET")
+	viper.BindEnv("SLACK_BOT_TOKEN")
 	viper.BindEnv("JIRA_URL")
     viper.BindEnv("JIRA_PROJECT")
     viper.BindEnv("JIRA_SUMMARY")
@@ -29,45 +29,31 @@ func main() {
 
 	username := viper.GetString("USER_NAME")
 	password := viper.GetString("PASSWORD")
-	signingSecret := viper.GetString("SIGNING_SECRET")
-	botToken := viper.GetString("BOT_TOKEN")
+
+	slackSigningSecret := viper.GetString("SLACK_SIGNING_SECRET")
+	slackBotToken := viper.GetString("SLACK_BOT_TOKEN")
+    slackChannels := viper.GetStringSlice("SLACK_CHANNELS")
+    slackEmoji := viper.GetString("SLACK EMOJI")
 
 	jiraUrl := viper.GetString("JIRA_URL")
 	jiraProject := viper.GetString("JIRA_PROJECT")
 	jiraSummary := viper.GetString("JIRA_SUMMARY")
 	jiraIssueType := viper.GetString("JIRA_ISSUE_TYPE")
 
-	tp := jira.BasicAuthTransport{
-		Username: username,
-		Password: password,
-	}
-
-	jiraClient, _ := jira.NewClient(tp.Client(), jiraUrl)
-
-	slackClient := slack.New(botToken)
-
-    jiraUser, resp, err := jiraClient.User.GetSelf()
+    slackEnv := slack.NewEnv(slackBotToken, slackSigningSecret, slackEmoji, slackChannels)
+    jiraEnv, err := jira.NewEnv(jiraUrl, username, password, jiraProject, jiraSummary, jiraIssueType)
 
     if err != nil {
-      bodyBytes, _ := ioutil.ReadAll(resp.Body)
-      fmt.Println(fmt.Sprintf("jira fetch user err, can't start: %+v %+v", string(bodyBytes), err))
-      return
 
     }
 
-	r := runtime{
-		JiraClient:    jiraClient,
-		SlackClient:   slackClient,
-		SigningSecret: signingSecret,
-        JiraUrl: jiraUrl,
-        JiraProject: jiraProject,
-        JiraSummary: jiraSummary,
-        JiraIssueType: jiraIssueType,
-        JiraUserAccountID: jiraUser.AccountID,
+	r := runtime{        
+        SlackEnv: slackEnv,
+        JiraEnv: jiraEnv,
 	}
 
 	router := mux.NewRouter()
-	router.Use(validateSlackRequest(signingSecret))
+	router.Use(slack.ValidateSlackRequest(slackSigningSecret))
 	router.HandleFunc("/slack/events", r.SlackEventsHandler)
 	http.Handle("/", router)
 
@@ -76,59 +62,11 @@ func main() {
 }
 
 type runtime struct {
-	JiraClient    *jira.Client
-	SlackClient   *slack.Client
-	SigningSecret string
-    JiraUrl string
-    JiraProject string
-    JiraSummary string
-    JiraIssueType string
-    JiraUserAccountID string
+    JiraEnv *jira.JiraEnv 
+    SlackEnv *slack.SlackEnv
 }
 
-func validateSlackRequest(signingSecret string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
-			bodyBytes, _ := ioutil.ReadAll(req.Body)
-			req.Body.Close() //  must close
-			req.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
-			sv, err := slack.NewSecretsVerifier(req.Header, signingSecret)
-			if err != nil {
-				resp.WriteHeader(http.StatusBadRequest)
-				return
-			}
-			if _, err := sv.Write(bodyBytes); err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			if err := sv.Ensure(); err != nil {
-				resp.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(bodyBytes), slackevents.OptionNoVerifyToken())
-			if err != nil {
-				resp.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			if eventsAPIEvent.Type == slackevents.URLVerification {
-				var r *slackevents.ChallengeResponse
-				err := json.Unmarshal([]byte(bodyBytes), &r)
-				if err != nil {
-					resp.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				resp.Header().Set("Content-Type", "text")
-				resp.Write([]byte(r.Challenge))
-				return
-			}
-
-			next.ServeHTTP(resp, req)
-
-		})
-	}
-}
 
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
@@ -144,7 +82,6 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		return
 	}
 
-	fmt.Println(fmt.Sprintf("outter: %+v", eventsAPIEvent))
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
@@ -159,91 +96,30 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
 }
 
-func createJiraIssue(issueProject string, issueType string, issueSummary string, description string, reporterAccountID string) *jira.Issue {
-    fields := &jira.IssueFields{
-        Reporter: &jira.User{
-            AccountID: reporterAccountID,
-        },
-        Description: description,
-        Type: jira.IssueType{
-            Name: issueType,
-        },
-        Project: jira.Project{
-            Key: issueProject,
-        },
-        Summary:  issueSummary, 
-    }
 
-    return &jira.Issue{
-        Fields: fields, 
-    }
-
-}
 
 func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) error {
-    fmt.Println(fmt.Sprintf("ev %+v", ev))
-
-    messages, err := GetConversationMessages(r.SlackClient, ev.Item.Channel, ev.Item.Timestamp)
+    messages, err := r.SlackEnv.GetConversationMessages(ev.Item.Channel, ev.Item.Timestamp)
 
     if err != nil {
         return err
     }
 
-    issue := createJiraIssue(r.JiraProject, r.JiraIssueType, r.JiraSummary, messages[0].Msg.Text, r.JiraUserAccountID)
-
-    createdIssue, _, err := r.JiraClient.Issue.CreateWithContext(context.Background(), issue)
+    createdIssue, err := r.JiraEnv.CreateJiraIssue(messages[0].Msg.Text)
 
     if err != nil {
         return err
     }
 
-    fmt.Println(fmt.Sprintf("issue: %+v", createdIssue))
+    jiraUrlToIssue := fmt.Sprintf("%sbrowse/%s", r.JiraEnv.JiraUrl, createdIssue.Key)
 
-    jiraUrlToIssue := fmt.Sprintf("%sbrowse/%s", r.JiraUrl, createdIssue.Key)
+    err = r.SlackEnv.PostMessageToThread(
+        ev.Item.Channel,
+        ev.Item.Timestamp,
+        jiraUrlToIssue)
 
-    r.SlackClient.PostMessage(ev.Item.Channel, slack.MsgOptionTS(ev.Item.Timestamp), slack.MsgOptionText(jiraUrlToIssue, true))
-
-    return nil
-
-}
-
-func GetConversationMessages(slackClient *slack.Client, channel string, timestamp string) ([]slack.Message, error) {
-    params := slack.GetConversationRepliesParameters {
-        ChannelID: channel,
-        Timestamp: timestamp,
-    }
-
-
-    messages, hasMore, nextCursor, err := slackClient.GetConversationRepliesContext(context.Background(), &params)
-
-    if err != nil {
-        return nil, err
-
-    }
-
-    var conversationMessages []slack.Message 
-    conversationMessages = append(conversationMessages, messages...)
-
-    for hasMore {
-        params := slack.GetConversationRepliesParameters {
-            ChannelID: channel,
-            Timestamp: timestamp,
-            Cursor: nextCursor,
-        }
-
-        messages, hasMore, nextCursor, err = slackClient.GetConversationRepliesContext(context.Background(), &params)
-
-        if err != nil {
-           return conversationMessages, err
-
-        }
-
-        conversationMessages = append(conversationMessages, messages...)
-
-
-    }
-
-    return conversationMessages, nil 
-
+    return err
 
 }
+
+
