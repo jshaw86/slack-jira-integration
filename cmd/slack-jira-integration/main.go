@@ -18,13 +18,13 @@ import (
 
 )
 
-func getEmojisByChannel(prefix string) map[string]string {
+func getEmojisByChannel(prefix string, channels []string) map[string]string {
     emojis := make(map[string]string)
-    for _, emoji := range emojis {
-        emojisEnvVar := fmt.Sprintf("%s_%s", prefix, emoji)
+    for _, channel := range channels {
+        emojisEnvVar := fmt.Sprintf("%s_%s", prefix, channel)
         viper.BindEnv(emojisEnvVar)
         emojiFromEnv := viper.GetString(emojisEnvVar)
-        emojis[emoji] = emojiFromEnv 
+        emojis[channel] = emojiFromEnv 
     }
 
     return emojis
@@ -47,7 +47,7 @@ func main() {
 	slackSigningSecret := viper.GetString("SLACK_SIGNING_SECRET")
 	slackBotToken := viper.GetString("SLACK_BOT_TOKEN")
     slackChannels := strings.Split(viper.GetString("SLACK_CHANNELS"),",")
-    slackEmojis := getEmojisByChannel("SLACK_EMOJI")
+    slackEmojis := getEmojisByChannel("SLACK_EMOJI", slackChannels)
 
 	jiraUrl := viper.GetString("JIRA_URL")
 	jiraProject := viper.GetString("JIRA_PROJECT")
