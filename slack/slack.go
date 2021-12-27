@@ -10,10 +10,10 @@ type SlackEnv struct {
 	SlackClient   *slack.Client
 	SlackSigningSecret string
     SlackChannels []string
-    SlackEmoji string
+    SlackEmojis map[string]string
 }
 
-func NewEnv(slackBotToken string, slackSigningSecret string, slackEmoji string, slackChannels []string) *SlackEnv {
+func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[string]string, slackChannels []string) *SlackEnv {
 
 	slackClient := slack.New(slackBotToken)
 
@@ -21,7 +21,7 @@ func NewEnv(slackBotToken string, slackSigningSecret string, slackEmoji string, 
 		SlackClient:   slackClient,
 		SlackSigningSecret: slackSigningSecret,
         SlackChannels: slackChannels,
-        SlackEmoji: slackEmoji,
+        SlackEmojis: slackEmojis,
         
 	}
 }

@@ -17,6 +17,18 @@ import (
 
 )
 
+func getEmojisByChannel(prefix string) map[string]string {
+    emojis := make(map[string]string)
+    for _, emoji := range emojis {
+        emojisEnvVar := fmt.Sprintf("%s_%s", prefix, emoji)
+        viper.BindEnv(emojisEnvVar)
+        emojiFromEnv := viper.GetString(emojisEnvVar)
+        emojis[emoji] = emojiFromEnv 
+    }
+
+    return emojis
+}
+
 func main() {
 	viper.BindEnv("USER_NAME")
 	viper.BindEnv("PASSWORD")
@@ -33,17 +45,19 @@ func main() {
 	slackSigningSecret := viper.GetString("SLACK_SIGNING_SECRET")
 	slackBotToken := viper.GetString("SLACK_BOT_TOKEN")
     slackChannels := viper.GetStringSlice("SLACK_CHANNELS")
-    slackEmoji := viper.GetString("SLACK EMOJI")
+    slackEmojis := getEmojisByChannel("SLACK_EMOJI")
 
 	jiraUrl := viper.GetString("JIRA_URL")
 	jiraProject := viper.GetString("JIRA_PROJECT")
 	jiraSummary := viper.GetString("JIRA_SUMMARY")
 	jiraIssueType := viper.GetString("JIRA_ISSUE_TYPE")
 
-    slackEnv := slack.NewEnv(slackBotToken, slackSigningSecret, slackEmoji, slackChannels)
+    slackEnv := slack.NewEnv(slackBotToken, slackSigningSecret, slackEmojis, slackChannels)
     jiraEnv, err := jira.NewEnv(jiraUrl, username, password, jiraProject, jiraSummary, jiraIssueType)
 
     if err != nil {
+        fmt.Println(fmt.Sprintf("jiraEnv err: %+v", err)) 
+        return
 
     }
 
@@ -86,6 +100,7 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		innerEvent := eventsAPIEvent.InnerEvent
 		switch ev := innerEvent.Data.(type) {
 		case *slackevents.ReactionAddedEvent:
+          fmt.Println(fmt.Sprintf("ev: %+v", ev))
           r.ReactionAddedEvent(ev)
 		
 
