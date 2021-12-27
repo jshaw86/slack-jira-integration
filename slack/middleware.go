@@ -1,6 +1,7 @@
 package slack
 
 import (
+    "fmt"
     "net/http"
     "io/ioutil"
     "bytes"
@@ -22,6 +23,7 @@ func ValidateSlackRequest(slackSigningSecret string) func(http.Handler) http.Han
 
 			sv, err := slack.NewSecretsVerifier(req.Header, slackSigningSecret)
 			if err != nil {
+                fmt.Println(fmt.Sprintf("auth err: %+v", err))
 				resp.WriteHeader(http.StatusBadRequest)
 				return
 			}
