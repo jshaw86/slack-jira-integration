@@ -66,6 +66,8 @@ func main() {
         JiraEnv: jiraEnv,
 	}
 
+    fmt.Println(fmt.Sprintf("env: %+v", r))
+
 	router := mux.NewRouter()
 	router.Use(slack.ValidateSlackRequest(slackSigningSecret))
 	router.HandleFunc("/slack/events", r.SlackEventsHandler)
@@ -98,13 +100,13 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
 	if eventsAPIEvent.Type == slackevents.CallbackEvent {
 		innerEvent := eventsAPIEvent.InnerEvent
-		switch ev := innerEvent.Data.(type) {
-		case *slackevents.ReactionAddedEvent:
-          fmt.Println(fmt.Sprintf("ev: %+v", ev))
-          r.ReactionAddedEvent(ev)
-		
-
-		}
+        switch ev := innerEvent.Data.(type) {
+        case *slackevents.ReactionAddedEvent:
+            fmt.Println(fmt.Sprintf("ev: %+v", ev))
+            r.ReactionAddedEvent(ev)
+        default:
+            fmt.Println(fmt.Sprintf("ev: %+v", ev))
+        }
 	}
 
 	resp.Write(body)
