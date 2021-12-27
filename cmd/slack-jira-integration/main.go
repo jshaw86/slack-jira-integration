@@ -66,7 +66,7 @@ func main() {
         JiraEnv: jiraEnv,
 	}
 
-    fmt.Println(fmt.Sprintf("env: %+v", r))
+    fmt.Println(fmt.Sprintf("env: %+v %+v", slackEnv, jiraEnv))
 
 	router := mux.NewRouter()
 	router.Use(slack.ValidateSlackRequest(slackSigningSecret))
@@ -86,6 +86,7 @@ type runtime struct {
 
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
+    fmt.Println(string(body))
 	if err != nil {
 		resp.WriteHeader(http.StatusBadRequest)
 		return
