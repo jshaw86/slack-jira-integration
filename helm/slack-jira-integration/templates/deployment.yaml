@@ -25,3 +25,5 @@ spec:
             name: jira 
         - configMapRef:
             name: jira
+        - configMapRef:
+            name: slack 

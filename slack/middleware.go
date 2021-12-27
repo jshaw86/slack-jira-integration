@@ -23,7 +23,7 @@ func ValidateSlackRequest(slackSigningSecret string) func(http.Handler) http.Han
 
 			sv, err := slack.NewSecretsVerifier(req.Header, slackSigningSecret)
 			if err != nil {
-                fmt.Println(fmt.Sprintf("auth err: %+v", err))
+                fmt.Println(fmt.Sprintf("secrets err: %+v", err))
 				resp.WriteHeader(http.StatusBadRequest)
 				return
 			}
@@ -32,6 +32,7 @@ func ValidateSlackRequest(slackSigningSecret string) func(http.Handler) http.Han
 				return
 			}
 			if err := sv.Ensure(); err != nil {
+                fmt.Println(fmt.Sprintf("auth err: %+v", err))
 				resp.WriteHeader(http.StatusUnauthorized)
 				return
 			}
