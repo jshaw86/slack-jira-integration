@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+    "strings"
 	"io/ioutil"
 	"net/http"
 
@@ -34,6 +35,7 @@ func main() {
 	viper.BindEnv("PASSWORD")
 	viper.BindEnv("SLACK_SIGNING_SECRET")
 	viper.BindEnv("SLACK_BOT_TOKEN")
+    viper.BindEnv("SLACK_CHANNELS")
 	viper.BindEnv("JIRA_URL")
     viper.BindEnv("JIRA_PROJECT")
     viper.BindEnv("JIRA_SUMMARY")
@@ -44,7 +46,7 @@ func main() {
 
 	slackSigningSecret := viper.GetString("SLACK_SIGNING_SECRET")
 	slackBotToken := viper.GetString("SLACK_BOT_TOKEN")
-    slackChannels := viper.GetStringSlice("SLACK_CHANNELS")
+    slackChannels := strings.Split(viper.GetString("SLACK_CHANNELS"),",")
     slackEmojis := getEmojisByChannel("SLACK_EMOJI")
 
 	jiraUrl := viper.GetString("JIRA_URL")
