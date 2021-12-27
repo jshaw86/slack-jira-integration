@@ -17,7 +17,7 @@ slackConfig:
   channels:
     - general
   emojis:
-    general: jira
+    general: mega 
 
 jiraConfig:
   username: ""

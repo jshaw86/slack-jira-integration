@@ -105,10 +105,10 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 		innerEvent := eventsAPIEvent.InnerEvent
         switch ev := innerEvent.Data.(type) {
         case *slackevents.ReactionAddedEvent:
-            fmt.Println(fmt.Sprintf("ev: %+v", ev))
-            if emoji, exists := r.SlackEnv.SlackEmojis[ev.Item.Channel]; exists &&
-                 ev.Reaction == emoji {
-                     r.ReactionAddedEvent(ev)
+            emoji, exists := r.SlackEnv.SlackEmojis[ev.Item.Channel]
+            fmt.Println(fmt.Sprintf("reaction added: channel %+v emoji %+v exists %+v reaction %+v", ev.Item.Channel, emoji, exists, ev.Reaction))
+            if exists && ev.Reaction == emoji {
+                r.ReactionAddedEvent(ev)
             }
         default:
             fmt.Println(fmt.Sprintf("ev: %+v", ev))
