@@ -8,7 +8,6 @@ import (
 
 type SlackEnv struct {
     SlackContext context.Context
-    SlackCancelFunc context.CancelFunc
 	SlackClient   *slack.Client
 	SlackSigningSecret string
     SlackChannelNames []string
@@ -28,7 +27,7 @@ func sliceIndex(limit int, predicate func(i int) bool) int {
 func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
 
 	slackClient := slack.New(slackBotToken)
-    context, cancelFunc := context.WithTimeout(context.Background(), 5)
+    context := context.Background()
 
     var slackChannelIds []string
     for _, channelName := range slackChannelNames {
@@ -37,7 +36,6 @@ func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[str
         slackChannelIds = append(slackChannelIds, channelID)
 
         if err != nil {
-            cancelFunc()
             return nil, err
 
         }
@@ -56,7 +54,6 @@ func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[str
 
 	return &SlackEnv{
         SlackContext: context,
-        SlackCancelFunc: cancelFunc,
 		SlackClient:   slackClient,
 		SlackSigningSecret: slackSigningSecret,
         SlackChannelNames: slackChannelNames,
