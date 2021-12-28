@@ -54,9 +54,14 @@ func main() {
 	jiraSummary := viper.GetString("JIRA_SUMMARY")
 	jiraIssueType := viper.GetString("JIRA_ISSUE_TYPE")
 
-    slackEnv := slack.NewEnv(slackBotToken, slackSigningSecret, slackEmojis, slackChannels)
-    jiraEnv, err := jira.NewEnv(jiraUrl, username, password, jiraProject, jiraSummary, jiraIssueType)
+    slackEnv, err := slack.NewEnv(slackBotToken, slackSigningSecret, slackEmojis, slackChannels)
+    if err != nil {
+        fmt.Println(fmt.Sprintf("jiraEnv err: %+v", err)) 
+        return
 
+    }
+
+    jiraEnv, err := jira.NewEnv(jiraUrl, username, password, jiraProject, jiraSummary, jiraIssueType)
     if err != nil {
         fmt.Println(fmt.Sprintf("jiraEnv err: %+v", err)) 
         return
