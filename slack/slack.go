@@ -15,40 +15,35 @@ type SlackEnv struct {
     SlackEmojis map[string]string
 }
 
-func sliceIndex(limit int, predicate func(i int) bool) int {
-    for i := 0; i < limit; i++ {
-        if predicate(i) {
-            return i
-        }
-    }
-    return -1
-}
-
 func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
 
 	slackClient := slack.New(slackBotToken)
     context := context.Background()
 
-    var slackChannelIds []string
+    var slackChannelNamesToIds map[string]string
     for _, channelName := range slackChannelNames {
         channelID, err := getChannelID(slackClient, context, channelName)
-
-        slackChannelIds = append(slackChannelIds, channelID)
 
         if err != nil {
             return nil, err
 
         }
 
+        if err == nil && channelID == "" {
+            return nil, fmt.Errorf("could not find channel name '%s'", channelName)
+
+        }
+
+        slackChannelNamesToIds[channelName] = channelID
+
     }
 
     slackEmojisByChannelID := make(map[string]string)
 
     for channelName, emoji := range slackEmojis {
+        channelID := slackChannelNamesToIds[channelName]
 
-        channelNameIndex := sliceIndex(len(slackChannelNames), func(i int) bool { return slackChannelNames[i] == channelName })
-
-        slackEmojisByChannelID[slackChannelIds[channelNameIndex]] = emoji
+        slackEmojisByChannelID[channelID] = emoji
 
     }
 
@@ -57,7 +52,6 @@ func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[str
 		SlackClient:   slackClient,
 		SlackSigningSecret: slackSigningSecret,
         SlackChannelNames: slackChannelNames,
-        SlackChannelIds: slackChannelIds,
         SlackEmojis: slackEmojisByChannelID,
         
 	}, nil
@@ -102,6 +96,18 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
 
     return conversationMessages, nil 
 
+
+}
+
+func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody string ) error {
+
+    _, resp, err := s.SlackClient.PostMessage(channel, slack.MsgOptionTS(timestamp), slack.MsgOptionText(msgBody, true))
+
+    if err != nil {
+        return fmt.Errorf("post message failed err: %s", resp)
+    }
+
+    return nil
 
 }
 
@@ -154,14 +160,3 @@ func getChannelID(slackClient *slack.Client, slackContext context.Context, chann
 
 }
 
-func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody string ) error {
-
-    _, resp, err := s.SlackClient.PostMessage(channel, slack.MsgOptionTS(timestamp), slack.MsgOptionText(msgBody, true))
-
-    if err != nil {
-        return fmt.Errorf("post message failed err: %s", resp)
-    }
-
-    return nil
-
-}

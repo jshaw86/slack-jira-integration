@@ -1,20 +1,17 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
     "strings"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/spf13/viper"
 
 	"github.com/gorilla/mux"
 
+    runtime "slack-jira-integration"
     "slack-jira-integration/slack"
     "slack-jira-integration/jira"
-
-	"github.com/slack-go/slack/slackevents"
 
 )
 
@@ -56,7 +53,7 @@ func main() {
 
     slackEnv, err := slack.NewEnv(slackBotToken, slackSigningSecret, slackEmojis, slackChannels)
     if err != nil {
-        fmt.Println(fmt.Sprintf("jiraEnv err: %+v", err)) 
+        fmt.Println(fmt.Sprintf("slackEnv err: %+v", err)) 
         return
 
     }
@@ -68,10 +65,8 @@ func main() {
 
     }
 
-	r := runtime{        
-        SlackEnv: slackEnv,
-        JiraEnv: jiraEnv,
-	}
+    r := runtime.New(slackEnv, jiraEnv)
+	
 
     fmt.Println(fmt.Sprintf("env: %+v %+v", slackEnv, jiraEnv))
 
@@ -81,72 +76,6 @@ func main() {
 	http.Handle("/", router)
 
 	http.ListenAndServe(":8000", router)
-
-}
-
-type runtime struct {
-    JiraEnv *jira.JiraEnv 
-    SlackEnv *slack.SlackEnv
-}
-
-
-
-func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
-	body, err := ioutil.ReadAll(req.Body)
-    fmt.Println(string(body))
-	if err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
-
-	}
-
-	eventsAPIEvent, err := slackevents.ParseEvent(json.RawMessage(body), slackevents.OptionNoVerifyToken())
-	if err != nil {
-		resp.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if eventsAPIEvent.Type == slackevents.CallbackEvent {
-		innerEvent := eventsAPIEvent.InnerEvent
-        switch ev := innerEvent.Data.(type) {
-        case *slackevents.ReactionAddedEvent:
-            emoji, exists := r.SlackEnv.SlackEmojis[ev.Item.Channel]
-            fmt.Println(fmt.Sprintf("reaction added: channel %+v emoji %+v exists %+v reaction %+v", ev.Item.Channel, emoji, exists, ev.Reaction))
-            if exists && ev.Reaction == emoji {
-                r.ReactionAddedEvent(ev)
-            }
-        default:
-            fmt.Println(fmt.Sprintf("ev: %+v", ev))
-        }
-	}
-
-	resp.Write(body)
-
-}
-
-
-
-func (r *runtime) ReactionAddedEvent(ev *slackevents.ReactionAddedEvent) error {
-    messages, err := r.SlackEnv.GetConversationMessages(ev.Item.Channel, ev.Item.Timestamp)
-
-    if err != nil {
-        return err
-    }
-
-    createdIssue, err := r.JiraEnv.CreateJiraIssue(messages[0].Msg.Text)
-
-    if err != nil {
-        return err
-    }
-
-    jiraUrlToIssue := fmt.Sprintf("%sbrowse/%s", r.JiraEnv.JiraUrl, createdIssue.Key)
-
-    err = r.SlackEnv.PostMessageToThread(
-        ev.Item.Channel,
-        ev.Item.Timestamp,
-        jiraUrlToIssue)
-
-    return err
 
 }
 
