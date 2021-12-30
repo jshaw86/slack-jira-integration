@@ -1,4 +1,5 @@
 build:
+	go generate cmd/slack-jira-integration/main.go
 	go build -o main cmd/slack-jira-integration/main.go
 
 run:

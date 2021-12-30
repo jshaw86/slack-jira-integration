@@ -15,14 +15,32 @@ type SlackEnv struct {
     SlackEmojis map[string]string
 }
 
-func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
+type SlackClientWrapper interface {
+    getConversationReplies(*slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error)
+    getConversations(*slack.GetConversationsParameters) ([]slack.Channel, string, error)
 
+}
+
+func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
 	slackClient := slack.New(slackBotToken)
     context := context.Background()
 
+    env := &SlackEnv{
+        SlackContext: context,
+		SlackClient:   slackClient,
+		SlackSigningSecret: slackSigningSecret,
+        SlackChannelNames: slackChannelNames,
+        
+	}
+
+    return env.setSlackEmojis(slackEmojis)
+
+}
+
+func (s *SlackEnv) setSlackEmojis(slackEmojis map[string]string) (*SlackEnv, error) {
     var slackChannelNamesToIds map[string]string
-    for _, channelName := range slackChannelNames {
-        channelID, err := getChannelID(slackClient, context, channelName)
+    for _, channelName := range s.SlackChannelNames {
+        channelID, err := s.getChannelID(channelName)
 
         if err != nil {
             return nil, err
@@ -47,14 +65,19 @@ func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[str
 
     }
 
-	return &SlackEnv{
-        SlackContext: context,
-		SlackClient:   slackClient,
-		SlackSigningSecret: slackSigningSecret,
-        SlackChannelNames: slackChannelNames,
-        SlackEmojis: slackEmojisByChannelID,
-        
-	}, nil
+    s.SlackEmojis = slackEmojisByChannelID
+
+    return s, nil
+
+}
+
+func (s *SlackEnv) getConversations(params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+    return s.SlackClient.GetConversationsContext(s.SlackContext, params)
+}
+
+func (s *SlackEnv) getConversationReplies(params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+    return s.SlackClient.GetConversationRepliesContext(s.SlackContext, params)
+
 }
 
 
@@ -65,7 +88,7 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
     }
 
 
-    messages, hasMore, nextCursor, err := s.SlackClient.GetConversationRepliesContext(s.SlackContext, &params)
+    messages, hasMore, nextCursor, err := s.getConversationReplies(&params) 
 
     if err != nil {
         return nil, err
@@ -82,7 +105,7 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
             Cursor: nextCursor,
         }
 
-        messages, hasMore, nextCursor, err = s.SlackClient.GetConversationRepliesContext(s.SlackContext, &params)
+        messages, hasMore, nextCursor, err = s.getConversationReplies(&params)
 
         if err != nil {
            return conversationMessages, err
@@ -91,16 +114,13 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
 
         conversationMessages = append(conversationMessages, messages...)
 
-
     }
 
     return conversationMessages, nil 
 
-
 }
 
 func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody string ) error {
-
     _, resp, err := s.SlackClient.PostMessage(channel, slack.MsgOptionTS(timestamp), slack.MsgOptionText(msgBody, true))
 
     if err != nil {
@@ -111,13 +131,12 @@ func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody
 
 }
 
-func getChannelID(slackClient *slack.Client, slackContext context.Context, channelName string) (string, error) {
-
+func (s *SlackEnv) getChannelID(channelName string) (string, error) {
     params := slack.GetConversationsParameters{
         ExcludeArchived: true,
     }
 
-    channels, nextCursor, err := slackClient.GetConversationsContext(slackContext, &params)
+    channels, nextCursor, err := s.getConversations(&params) 
 
     if err != nil {
         return "", err
@@ -139,8 +158,7 @@ func getChannelID(slackClient *slack.Client, slackContext context.Context, chann
             ExcludeArchived: true,
         }
 
-
-        channels, nextCursor, err = slackClient.GetConversationsContext(slackContext, &params)
+        channels, nextCursor, err = s.getConversations(&params) 
 
         if err != nil {
             return "", err

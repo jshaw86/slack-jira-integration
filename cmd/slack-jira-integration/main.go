@@ -1,3 +1,5 @@
+//go:generate mockgen -source=../../slack/slack.go -destination=../../slack/slack_mock.go -package=slack
+//go:generate mockgen -source=../../jira/jira.go -destination=../../jira/jira_mock.go -package=jira
 package main
 
 import (
