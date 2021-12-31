@@ -1,5 +1,5 @@
 build:
-	go install github.com/golang/mock/mockgen@v1.6.0
+	go install github.com/golang/mock/mockgen
 	go generate cmd/slack-jira-integration/main.go
 	go build -o main cmd/slack-jira-integration/main.go
 
