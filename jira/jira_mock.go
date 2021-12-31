@@ -11,31 +11,31 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockJiraClientWrapper is a mock of JiraClientWrapper interface.
-type MockJiraClientWrapper struct {
+// MockJiraer is a mock of Jiraer interface.
+type MockJiraer struct {
 	ctrl     *gomock.Controller
-	recorder *MockJiraClientWrapperMockRecorder
+	recorder *MockJiraerMockRecorder
 }
 
-// MockJiraClientWrapperMockRecorder is the mock recorder for MockJiraClientWrapper.
-type MockJiraClientWrapperMockRecorder struct {
-	mock *MockJiraClientWrapper
+// MockJiraerMockRecorder is the mock recorder for MockJiraer.
+type MockJiraerMockRecorder struct {
+	mock *MockJiraer
 }
 
-// NewMockJiraClientWrapper creates a new mock instance.
-func NewMockJiraClientWrapper(ctrl *gomock.Controller) *MockJiraClientWrapper {
-	mock := &MockJiraClientWrapper{ctrl: ctrl}
-	mock.recorder = &MockJiraClientWrapperMockRecorder{mock}
+// NewMockJiraer creates a new mock instance.
+func NewMockJiraer(ctrl *gomock.Controller) *MockJiraer {
+	mock := &MockJiraer{ctrl: ctrl}
+	mock.recorder = &MockJiraerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockJiraClientWrapper) EXPECT() *MockJiraClientWrapperMockRecorder {
+func (m *MockJiraer) EXPECT() *MockJiraerMockRecorder {
 	return m.recorder
 }
 
 // createIssue mocks base method.
-func (m *MockJiraClientWrapper) createIssue(arg0 *jira.Issue) (*jira.Issue, *jira.Response, error) {
+func (m *MockJiraer) createIssue(arg0 *jira.Issue) (*jira.Issue, *jira.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "createIssue", arg0)
 	ret0, _ := ret[0].(*jira.Issue)
@@ -45,13 +45,13 @@ func (m *MockJiraClientWrapper) createIssue(arg0 *jira.Issue) (*jira.Issue, *jir
 }
 
 // createIssue indicates an expected call of createIssue.
-func (mr *MockJiraClientWrapperMockRecorder) createIssue(arg0 interface{}) *gomock.Call {
+func (mr *MockJiraerMockRecorder) createIssue(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "createIssue", reflect.TypeOf((*MockJiraClientWrapper)(nil).createIssue), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "createIssue", reflect.TypeOf((*MockJiraer)(nil).createIssue), arg0)
 }
 
 // getSelf mocks base method.
-func (m *MockJiraClientWrapper) getSelf() (*jira.User, *jira.Response, error) {
+func (m *MockJiraer) getSelf() (*jira.User, *jira.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "getSelf")
 	ret0, _ := ret[0].(*jira.User)
@@ -61,7 +61,7 @@ func (m *MockJiraClientWrapper) getSelf() (*jira.User, *jira.Response, error) {
 }
 
 // getSelf indicates an expected call of getSelf.
-func (mr *MockJiraClientWrapperMockRecorder) getSelf() *gomock.Call {
+func (mr *MockJiraerMockRecorder) getSelf() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getSelf", reflect.TypeOf((*MockJiraClientWrapper)(nil).getSelf))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getSelf", reflect.TypeOf((*MockJiraer)(nil).getSelf))
 }

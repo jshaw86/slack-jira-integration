@@ -11,31 +11,31 @@ import (
 	slack "github.com/slack-go/slack"
 )
 
-// MockSlackClientWrapper is a mock of SlackClientWrapper interface.
-type MockSlackClientWrapper struct {
+// MockSlacker is a mock of Slacker interface.
+type MockSlacker struct {
 	ctrl     *gomock.Controller
-	recorder *MockSlackClientWrapperMockRecorder
+	recorder *MockSlackerMockRecorder
 }
 
-// MockSlackClientWrapperMockRecorder is the mock recorder for MockSlackClientWrapper.
-type MockSlackClientWrapperMockRecorder struct {
-	mock *MockSlackClientWrapper
+// MockSlackerMockRecorder is the mock recorder for MockSlacker.
+type MockSlackerMockRecorder struct {
+	mock *MockSlacker
 }
 
-// NewMockSlackClientWrapper creates a new mock instance.
-func NewMockSlackClientWrapper(ctrl *gomock.Controller) *MockSlackClientWrapper {
-	mock := &MockSlackClientWrapper{ctrl: ctrl}
-	mock.recorder = &MockSlackClientWrapperMockRecorder{mock}
+// NewMockSlacker creates a new mock instance.
+func NewMockSlacker(ctrl *gomock.Controller) *MockSlacker {
+	mock := &MockSlacker{ctrl: ctrl}
+	mock.recorder = &MockSlackerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockSlackClientWrapper) EXPECT() *MockSlackClientWrapperMockRecorder {
+func (m *MockSlacker) EXPECT() *MockSlackerMockRecorder {
 	return m.recorder
 }
 
 // getConversationReplies mocks base method.
-func (m *MockSlackClientWrapper) getConversationReplies(arg0 *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+func (m *MockSlacker) getConversationReplies(arg0 *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "getConversationReplies", arg0)
 	ret0, _ := ret[0].([]slack.Message)
@@ -46,13 +46,13 @@ func (m *MockSlackClientWrapper) getConversationReplies(arg0 *slack.GetConversat
 }
 
 // getConversationReplies indicates an expected call of getConversationReplies.
-func (mr *MockSlackClientWrapperMockRecorder) getConversationReplies(arg0 interface{}) *gomock.Call {
+func (mr *MockSlackerMockRecorder) getConversationReplies(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getConversationReplies", reflect.TypeOf((*MockSlackClientWrapper)(nil).getConversationReplies), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getConversationReplies", reflect.TypeOf((*MockSlacker)(nil).getConversationReplies), arg0)
 }
 
 // getConversations mocks base method.
-func (m *MockSlackClientWrapper) getConversations(arg0 *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+func (m *MockSlacker) getConversations(arg0 *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "getConversations", arg0)
 	ret0, _ := ret[0].([]slack.Channel)
@@ -62,7 +62,23 @@ func (m *MockSlackClientWrapper) getConversations(arg0 *slack.GetConversationsPa
 }
 
 // getConversations indicates an expected call of getConversations.
-func (mr *MockSlackClientWrapperMockRecorder) getConversations(arg0 interface{}) *gomock.Call {
+func (mr *MockSlackerMockRecorder) getConversations(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getConversations", reflect.TypeOf((*MockSlackClientWrapper)(nil).getConversations), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getConversations", reflect.TypeOf((*MockSlacker)(nil).getConversations), arg0)
+}
+
+// postMessage mocks base method.
+func (m *MockSlacker) postMessage(arg0, arg1, arg2 string) (string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "postMessage", arg0, arg1, arg2)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// postMessage indicates an expected call of postMessage.
+func (mr *MockSlackerMockRecorder) postMessage(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "postMessage", reflect.TypeOf((*MockSlacker)(nil).postMessage), arg0, arg1, arg2)
 }

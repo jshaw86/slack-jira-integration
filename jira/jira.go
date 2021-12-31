@@ -8,8 +8,7 @@ import (
 )
 
 type JiraEnv struct {
-    JiraContext context.Context
-	JiraClient    *jira.Client
+	JiraClient Jiraer 
     JiraUrl string
     JiraProject string
     JiraSummary string
@@ -17,31 +16,46 @@ type JiraEnv struct {
     JiraUserAccountID string
 }
 
-type JiraClientWrapper interface {
+type Jiraer interface {
     getSelf() (*jira.User, *jira.Response, error)
     createIssue(*jira.Issue) (*jira.Issue, *jira.Response, error)
-
-
 }
 
-func NewEnv(jiraUrl string, username string, password string, jiraProject string, jiraSummary string, jiraIssueType string) (*JiraEnv, error) {
+type jiraClient struct{
+    Context context.Context
+    Client *jira.Client
+}
+
+func NewClient(jiraUrl string, username string, password string) Jiraer{
     tp := jira.BasicAuthTransport{
         Username: username,
         Password: password,
     }
 
-    jiraClient, _ := jira.NewClient(tp.Client(), jiraUrl)
+    client, _ := jira.NewClient(tp.Client(), jiraUrl)
+    return &jiraClient{Context: context.Background(), Client: client}
 
+}
+
+func (j *jiraClient) createIssue(issue *jira.Issue) (*jira.Issue, *jira.Response, error) {
+    return j.Client.Issue.CreateWithContext(j.Context, issue)
+
+}
+
+func (j *jiraClient) getSelf() (*jira.User, *jira.Response, error) {
+    return j.Client.User.GetSelf()
+
+}
+
+func NewEnv(client Jiraer, jiraProject string, jiraSummary string, jiraIssueType string) (*JiraEnv, error) {
     env := &JiraEnv{
-        JiraContext: context.Background(),
-        JiraClient: jiraClient,
-        JiraUrl: jiraUrl,
+        JiraClient: client,
         JiraProject: jiraProject,
         JiraSummary: jiraSummary,
         JiraIssueType: jiraIssueType,
     }
 
-    jiraUser, resp, err := env.getSelf()
+    jiraUser, resp, err := env.JiraClient.getSelf()
 
     if err != nil {
         bodyBytes, _ := ioutil.ReadAll(resp.Body)
@@ -50,16 +64,6 @@ func NewEnv(jiraUrl string, username string, password string, jiraProject string
     }
 
     return env.setAccountID(jiraUser.AccountID), nil
-
-}
-
-func (j *JiraEnv) createIssue(issue *jira.Issue) (*jira.Issue, *jira.Response, error) {
-    return j.JiraClient.Issue.CreateWithContext(j.JiraContext, issue)
-
-}
-
-func (j *JiraEnv) getSelf() (*jira.User, *jira.Response, error) {
-    return j.JiraClient.User.GetSelf()
 
 }
 
@@ -88,7 +92,7 @@ func (j *JiraEnv) CreateJiraIssue(description string) (*jira.Issue, error) {
     }
 
 
-    createdIssue, resp, err := j.createIssue(issue) 
+    createdIssue, resp, err := j.JiraClient.createIssue(issue) 
 
     if err != nil {
       bodyBytes, _ := ioutil.ReadAll(resp.Body)

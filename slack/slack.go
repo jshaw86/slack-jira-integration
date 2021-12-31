@@ -7,27 +7,52 @@ import (
 )
 
 type SlackEnv struct {
-    SlackContext context.Context
-	SlackClient   *slack.Client
+	SlackClient Slacker
 	SlackSigningSecret string
     SlackChannelNames []string
     SlackChannelIds []string
     SlackEmojis map[string]string
 }
 
-type SlackClientWrapper interface {
+type Slacker interface {
     getConversationReplies(*slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error)
     getConversations(*slack.GetConversationsParameters) ([]slack.Channel, string, error)
+    postMessage(string, string, string) (string, string, error)
 
 }
 
-func NewEnv(slackBotToken string, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
-	slackClient := slack.New(slackBotToken)
-    context := context.Background()
+type slackClient struct {
+    Client *slack.Client
+    Context context.Context
 
+}
+
+func NewClient(slackBotToken string) Slacker {
+    context := context.Background()
+    return &slackClient{
+        Context: context,
+        Client: slack.New(slackBotToken),
+    }
+
+}
+
+func (s *slackClient) getConversations(params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
+    return s.Client.GetConversationsContext(s.Context, params)
+}
+
+func (s *slackClient) getConversationReplies(params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
+    return s.Client.GetConversationRepliesContext(s.Context, params)
+
+}
+
+func (s *slackClient) postMessage(channel string, timestamp string, msgBody string) (string, string, error)  {
+    return s.Client.PostMessage(channel, slack.MsgOptionTS(timestamp), slack.MsgOptionText(msgBody, true))
+
+}
+
+func NewEnv(client Slacker, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
     env := &SlackEnv{
-        SlackContext: context,
-		SlackClient:   slackClient,
+		SlackClient: client,
 		SlackSigningSecret: slackSigningSecret,
         SlackChannelNames: slackChannelNames,
         
@@ -71,16 +96,6 @@ func (s *SlackEnv) setSlackEmojis(slackEmojis map[string]string) (*SlackEnv, err
 
 }
 
-func (s *SlackEnv) getConversations(params *slack.GetConversationsParameters) ([]slack.Channel, string, error) {
-    return s.SlackClient.GetConversationsContext(s.SlackContext, params)
-}
-
-func (s *SlackEnv) getConversationReplies(params *slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error) {
-    return s.SlackClient.GetConversationRepliesContext(s.SlackContext, params)
-
-}
-
-
 func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]slack.Message, error) {
     params := slack.GetConversationRepliesParameters {
         ChannelID: channel,
@@ -88,7 +103,7 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
     }
 
 
-    messages, hasMore, nextCursor, err := s.getConversationReplies(&params) 
+    messages, hasMore, nextCursor, err := s.SlackClient.getConversationReplies(&params) 
 
     if err != nil {
         return nil, err
@@ -105,7 +120,7 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
             Cursor: nextCursor,
         }
 
-        messages, hasMore, nextCursor, err = s.getConversationReplies(&params)
+        messages, hasMore, nextCursor, err = s.SlackClient.getConversationReplies(&params)
 
         if err != nil {
            return conversationMessages, err
@@ -121,7 +136,7 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
 }
 
 func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody string ) error {
-    _, resp, err := s.SlackClient.PostMessage(channel, slack.MsgOptionTS(timestamp), slack.MsgOptionText(msgBody, true))
+    _, resp, err := s.SlackClient.postMessage(channel, timestamp, msgBody) 
 
     if err != nil {
         return fmt.Errorf("post message failed err: %s", resp)
@@ -136,7 +151,7 @@ func (s *SlackEnv) getChannelID(channelName string) (string, error) {
         ExcludeArchived: true,
     }
 
-    channels, nextCursor, err := s.getConversations(&params) 
+    channels, nextCursor, err := s.SlackClient.getConversations(&params) 
 
     if err != nil {
         return "", err
@@ -158,7 +173,7 @@ func (s *SlackEnv) getChannelID(channelName string) (string, error) {
             ExcludeArchived: true,
         }
 
-        channels, nextCursor, err = s.getConversations(&params) 
+        channels, nextCursor, err = s.SlackClient.getConversations(&params) 
 
         if err != nil {
             return "", err
