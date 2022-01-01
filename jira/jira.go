@@ -47,6 +47,11 @@ func (j *jiraClient) getSelf() (*jira.User, *jira.Response, error) {
 
 }
 
+func (j *JiraEnv) setAccountID(accountID string) *JiraEnv {
+    j.JiraUserAccountID = accountID
+    return j
+}
+
 func NewEnv(client Jiraer, jiraProject string, jiraSummary string, jiraIssueType string) (*JiraEnv, error) {
     env := &JiraEnv{
         JiraClient: client,
@@ -67,11 +72,6 @@ func NewEnv(client Jiraer, jiraProject string, jiraSummary string, jiraIssueType
 
 }
 
-func (j *JiraEnv) setAccountID(accountID string) *JiraEnv {
-    j.JiraUserAccountID = accountID
-    return j
-}
-
 func (j *JiraEnv) CreateJiraIssue(description string) (*jira.Issue, error) {
     fields := &jira.IssueFields{
         Reporter: &jira.User{
@@ -90,7 +90,6 @@ func (j *JiraEnv) CreateJiraIssue(description string) (*jira.Issue, error) {
     issue := &jira.Issue{
         Fields: fields, 
     }
-
 
     createdIssue, resp, err := j.JiraClient.createIssue(issue) 
 

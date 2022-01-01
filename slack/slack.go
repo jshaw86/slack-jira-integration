@@ -63,7 +63,7 @@ func NewEnv(client Slacker, slackSigningSecret string, slackEmojis map[string]st
 }
 
 func (s *SlackEnv) setSlackEmojis(slackEmojis map[string]string) (*SlackEnv, error) {
-    var slackChannelNamesToIds map[string]string
+    slackChannelNamesToIds := make(map[string]string)
     for _, channelName := range s.SlackChannelNames {
         channelID, err := s.getChannelID(channelName)
 
