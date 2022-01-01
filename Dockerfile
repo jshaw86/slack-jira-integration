@@ -2,8 +2,7 @@
 FROM golang:1.13.6-alpine3.11 as build
 WORKDIR /app
 COPY . /app
-RUN ls -la
-RUN apk add make
+RUN apk add make gcc musl-dev
 RUN make build
 
 FROM alpine:3.11.3
