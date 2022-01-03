@@ -7,6 +7,8 @@ import (
     "fmt"
 )
 
+// JiraEnv is the Dependency Injection(DI) for jira object allowing environment
+// variable access and better testability
 type JiraEnv struct {
 	JiraClient Jiraer 
     JiraUrl string
@@ -16,6 +18,9 @@ type JiraEnv struct {
     JiraUserAccountID string
 }
 
+// Jiraer is an interface for testing purposes wrapping the concrete jira.client
+// the JiraEnv takes a Jiraer which is either the jiraClient struct below or a 
+// MockJiraClient from jira_test
 type Jiraer interface {
     getSelf() (*jira.User, *jira.Response, error)
     createIssue(*jira.Issue) (*jira.Issue, *jira.Response, error)
@@ -26,6 +31,7 @@ type jiraClient struct{
     Client *jira.Client
 }
 
+// NewClient, construct a newClient which implements Jiraer 
 func NewClient(jiraUrl string, username string, password string) Jiraer{
     tp := jira.BasicAuthTransport{
         Username: username,
@@ -72,6 +78,8 @@ func NewEnv(client Jiraer, jiraProject string, jiraSummary string, jiraIssueType
 
 }
 
+// CreateJiraIssue, given the description create a Jira issue with the
+// summary, accountID, issue type, project from the JiraEnv
 func (j *JiraEnv) CreateJiraIssue(description string) (*jira.Issue, error) {
     fields := &jira.IssueFields{
         Reporter: &jira.User{

@@ -6,6 +6,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
+// SlackEnv is the Dependency Injection(DI) for slack object allowing environment
+// variable access and better testability
 type SlackEnv struct {
 	SlackClient Slacker
 	SlackSigningSecret string
@@ -14,6 +16,9 @@ type SlackEnv struct {
     SlackEmojis map[string]string
 }
 
+// Slacker is an interface for testing purposes wrapping the concrete slack.client
+// the SlackEnv takes a Slacker which is either the slackClient struct below or a 
+// MockSlackClient from slack_test
 type Slacker interface {
     getConversationReplies(*slack.GetConversationRepliesParameters) ([]slack.Message, bool, string, error)
     getConversations(*slack.GetConversationsParameters) ([]slack.Channel, string, error)
@@ -27,6 +32,7 @@ type slackClient struct {
 
 }
 
+// NewClient, construct a newClient which implements Slacker
 func NewClient(slackBotToken string) Slacker {
     context := context.Background()
     return &slackClient{
@@ -50,6 +56,8 @@ func (s *slackClient) postMessage(channel string, timestamp string, msgBody stri
 
 }
 
+// NewEnv, construct a new SlackEnv, 
+// transforms slackEmojis indexed by name to indexed by ChannelID via transformSlackEmojisToIndexedByChannelID
 func NewEnv(client Slacker, slackSigningSecret string, slackEmojis map[string]string, slackChannelNames []string) (*SlackEnv, error) {
     env := &SlackEnv{
 		SlackClient: client,
@@ -58,11 +66,13 @@ func NewEnv(client Slacker, slackSigningSecret string, slackEmojis map[string]st
         
 	}
 
-    return env.setSlackEmojis(slackEmojis)
+    return env.transformSlackEmojisToIndexedByChannelID(slackEmojis)
 
 }
 
-func (s *SlackEnv) setSlackEmojis(slackEmojis map[string]string) (*SlackEnv, error) {
+// transformSlackEmojisToIndexedByChannelID, takes a map indexed by channel name with emoji strings as values
+// finds the corresponding ChannelID for the given channel name via getChannelID
+func (s *SlackEnv) transformSlackEmojisToIndexedByChannelID(slackEmojis map[string]string) (*SlackEnv, error) {
     slackChannelNamesToIds := make(map[string]string)
     for _, channelName := range s.SlackChannelNames {
         channelID, err := s.getChannelID(channelName)
@@ -96,6 +106,7 @@ func (s *SlackEnv) setSlackEmojis(slackEmojis map[string]string) (*SlackEnv, err
 
 }
 
+// GetConversationMessages, returns all messages in a thread given the originating channel/timestamp
 func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]slack.Message, error) {
     params := slack.GetConversationRepliesParameters {
         ChannelID: channel,
@@ -135,6 +146,7 @@ func (s *SlackEnv) GetConversationMessages(channel string, timestamp string) ([]
 
 }
 
+// PostMessageToThread, reply to a thread(channel/timestamp) with the given msgBody
 func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody string ) error {
     _, resp, err := s.SlackClient.postMessage(channel, timestamp, msgBody) 
 
@@ -146,6 +158,12 @@ func (s *SlackEnv) PostMessageToThread(channel string, timestamp string, msgBody
 
 }
 
+// getChannelID, given a channel name find the corresponding getChannelID
+//
+// NOTE: This is a naive implementation, assumes the function will be called
+//       very few times. If the program starts monitoring many channels this
+//       should either implement caching or map many channelNames to many
+//       channelIDs for a single method call
 func (s *SlackEnv) getChannelID(channelName string) (string, error) {
     params := slack.GetConversationsParameters{
         ExcludeArchived: true,

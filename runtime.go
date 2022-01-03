@@ -17,6 +17,7 @@ type runtime struct {
     SlackEnv *slack.SlackEnv
 }
 
+// New, create a new runtime, given a SlackEnv and JiraEnv
 func New(slackEnv *slack.SlackEnv, jiraEnv *jira.JiraEnv) *runtime {
     return &runtime{        
         SlackEnv: slackEnv,
@@ -25,6 +26,8 @@ func New(slackEnv *slack.SlackEnv, jiraEnv *jira.JiraEnv) *runtime {
 
 }
 
+// SlackEventsHandler, main server handler accepts requests from Slack client
+// and routes Slack event type to right function
 func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
     fmt.Println(string(body))
@@ -54,13 +57,15 @@ func (r *runtime) SlackEventsHandler(resp http.ResponseWriter, req *http.Request
 
 }
 
+// channelEmojiCombinationMatches, logic to determine if given channelID and reaction(emoji)
+// should be processed
 func (r *runtime) channelEmojiCombinationMatches(channelID string, reaction string) bool {
     emoji, exists := r.SlackEnv.SlackEmojis[channelID]
     return exists && reaction == emoji
 
 }
 
-
+// reactionAddedEvent, handle a ReactionAddedEvent(emoji added) to top level thread
 func (r *runtime) reactionAddedEvent(ev *slackevents.ReactionAddedEvent) error {
     // noop if channel and reaction do not exist or match desired channel/emoji combination
     if !r.channelEmojiCombinationMatches(ev.Item.Channel, ev.Reaction) {
